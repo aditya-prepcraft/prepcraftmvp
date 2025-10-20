@@ -19,9 +19,8 @@ export default function Leaderboard() {
   const fetchLeaderboard = async () => {
     try {
       const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, college, points, streak_days')
-        .order('points', { ascending: false })
+        .from('leaderboard_view')
+        .select('id, full_name, college_display, points, streak_days')
         .limit(100);
 
       if (data) setLeaderboard(data);
@@ -54,15 +53,6 @@ export default function Leaderboard() {
       .slice(0, 2);
   };
 
-  const getCollegeInitials = (college: string) => {
-    if (!college) return '';
-    return college
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 3);
-  };
 
   if (loading) {
     return (
@@ -131,7 +121,7 @@ export default function Leaderboard() {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {profile.college ? getCollegeInitials(profile.college) : 'Student'}
+                      {profile.college_display || 'Student'}
                     </p>
                   </div>
 

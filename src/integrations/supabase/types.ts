@@ -149,6 +149,13 @@ export type Database = {
             foreignKeyName: "progress_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "leaderboard_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -211,6 +218,13 @@ export type Database = {
             foreignKeyName: "user_roles_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "leaderboard_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -218,7 +232,30 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      leaderboard_view: {
+        Row: {
+          college_display: string | null
+          full_name: string | null
+          id: string | null
+          points: number | null
+          streak_days: number | null
+        }
+        Insert: {
+          college_display?: never
+          full_name?: string | null
+          id?: string | null
+          points?: number | null
+          streak_days?: number | null
+        }
+        Update: {
+          college_display?: never
+          full_name?: string | null
+          id?: string | null
+          points?: number | null
+          streak_days?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
