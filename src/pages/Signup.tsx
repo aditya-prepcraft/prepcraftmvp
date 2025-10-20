@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,20 +8,20 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from "sonner";
 import { Zap, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { z } from "zod";
 
 const signupSchema = z.object({
   fullName: z.string()
     .trim()
-    .min(2, 'Full name must be at least 2 characters')
-    .max(100, 'Full name must be less than 100 characters')
-    .regex(/^[a-zA-Z\s]+$/, 'Full name should only contain letters and spaces'),
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must be less than 100 characters")
+    .regex(/^[a-zA-Z\s]+$/, "Name can only contain letters and spaces"),
   email: z.string()
-    .trim()
-    .email('Invalid email address')
-    .max(255, 'Email must be less than 255 characters'),
+    .email("Invalid email address")
+    .max(255, "Email must be less than 255 characters"),
   password: z.string()
-    .min(8, 'Password must be at least 8 characters')
-    .max(100, 'Password must be less than 100 characters')
+    .min(8, "Password must be at least 8 characters")
+    .max(72, "Password must be less than 72 characters"),
 });
 
 export default function Signup() {
@@ -45,12 +44,7 @@ export default function Signup() {
 
     try {
       // Validate input
-      const result = signupSchema.safeParse({
-        fullName: fullName.trim(),
-        email: email.trim(),
-        password
-      });
-
+      const result = signupSchema.safeParse({ fullName, email, password });
       if (!result.success) {
         toast.error(result.error.errors[0].message);
         setLoading(false);

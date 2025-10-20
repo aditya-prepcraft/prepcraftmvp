@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,26 +9,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { z } from "zod";
 
 const onboardingSchema = z.object({
   phone: z.string()
     .trim()
-    .regex(/^(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/, 'Invalid phone number format')
-    .max(20, 'Phone number too long'),
+    .regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number format (e.g., +919876543210)")
+    .max(20, "Phone number too long"),
   college: z.string()
     .trim()
-    .min(2, 'College name must be at least 2 characters')
-    .max(200, 'College name must be less than 200 characters'),
+    .min(2, "College name must be at least 2 characters")
+    .max(200, "College name must be less than 200 characters"),
   course: z.enum(['btech', 'bca', 'mca', 'mtech', 'bsc', 'msc'], {
-    errorMap: () => ({ message: 'Please select a valid course' })
+    errorMap: () => ({ message: "Please select a valid course" })
   }),
   year: z.number()
-    .int('Year must be a whole number')
-    .min(1, 'Year must be between 1 and 5')
-    .max(5, 'Year must be between 1 and 5'),
+    .int("Year must be a whole number")
+    .min(1, "Year must be between 1 and 5")
+    .max(5, "Year must be between 1 and 5"),
   primaryGoal: z.enum(['product', 'service', 'startup', 'higheredu', 'skills'], {
-    errorMap: () => ({ message: 'Please select a valid goal' })
-  })
+    errorMap: () => ({ message: "Please select a valid goal" })
+  }),
 });
 
 export default function Onboarding() {
@@ -51,11 +51,11 @@ export default function Onboarding() {
     try {
       // Validate input
       const result = onboardingSchema.safeParse({
-        phone: phone.trim(),
-        college: college.trim(),
+        phone,
+        college,
         course,
         year: parseInt(year),
-        primaryGoal
+        primaryGoal,
       });
 
       if (!result.success) {

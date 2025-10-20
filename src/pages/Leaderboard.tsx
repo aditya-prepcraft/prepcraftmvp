@@ -53,7 +53,6 @@ export default function Leaderboard() {
       .slice(0, 2);
   };
 
-
   if (loading) {
     return (
       <div className="container py-8">
