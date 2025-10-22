@@ -14,14 +14,15 @@ import {
   Code, 
   HelpCircle,
   ArrowLeft,
-  Trophy
+  Trophy,
+  RotateCcw
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProgressRing } from "@/components/ProgressRing";
 
 const lessonTypeIcons = {
   video: PlayCircle,
-  article: FileText,
+  notes: FileText,
   quiz: HelpCircle,
   coding: Code,
 };
@@ -138,6 +139,49 @@ export default function Learn() {
     } catch (error) {
       console.error('Error completing lesson:', error);
       toast.error("Failed to update progress");
+    }
+  };
+
+  const handleResetProgress = async () => {
+    if (!progress || !user || !subjectData) return;
+
+    try {
+      const pointsToDeduct = progress.points_earned || 0;
+
+      // Reset progress in progress table
+      const { error: progressError } = await supabase
+        .from('progress')
+        .update({
+          completed_lessons: [],
+          percent: 0,
+          points_earned: 0,
+        })
+        .eq('user_id', user.id)
+        .eq('subject_id', subjectData.id);
+
+      if (progressError) throw progressError;
+
+      // Deduct points from profile
+      const { data: currentProfile } = await supabase
+        .from('profiles')
+        .select('points')
+        .eq('id', user.id)
+        .single();
+
+      const newPoints = Math.max(0, (currentProfile?.points || 0) - pointsToDeduct);
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ points: newPoints })
+        .eq('id', user.id);
+
+      if (profileError) throw profileError;
+
+      toast.success("Progress reset successfully!");
+      fetchData();
+    } catch (error) {
+      console.error('Error resetting progress:', error);
+      toast.error("Failed to reset progress");
     }
   };
 
@@ -281,6 +325,27 @@ export default function Learn() {
               </div>
             </CardContent>
           </Card>
+
+          {completedCount > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Reset Progress</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Button 
+                  variant="destructive" 
+                  className="w-full" 
+                  onClick={handleResetProgress}
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Reset Progress
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  This will reset all completed lessons and deduct earned points
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
