@@ -2,70 +2,86 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { 
-  CheckCircle2, 
-  Circle, 
-  PlayCircle, 
-  FileText, 
-  Code, 
-  HelpCircle,
   ArrowLeft,
-  Trophy,
-  RotateCcw
+  Menu,
+  X,
+  FileText,
+  Code,
+  HelpCircle,
+  CheckCircle2,
+  Trophy
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ProgressRing } from "@/components/ProgressRing";
-
-const lessonTypeIcons = {
-  video: PlayCircle,
-  notes: FileText,
-  quiz: HelpCircle,
-  coding: Code,
-};
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { getSubjectBySlug } from "@/subjects";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
 
 export default function Learn() {
-  const { subject } = useParams<{ subject: string }>();
+  const { subject: subjectSlug } = useParams<{ subject: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [subjectData, setSubjectData] = useState<any>(null);
-  const [lessons, setLessons] = useState<any[]>([]);
+  const isMobile = useIsMobile();
+  
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [selectedNote, setSelectedNote] = useState(0);
+  const [selectedProblem, setSelectedProblem] = useState(0);
+  const [selectedQuiz, setSelectedQuiz] = useState(0);
+  const [activeTab, setActiveTab] = useState('notes');
   const [progress, setProgress] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const subject = getSubjectBySlug(subjectSlug || '');
+
   useEffect(() => {
-    if (subject && user) {
-      fetchData();
+    if (subjectSlug && user) {
+      fetchProgress();
       updateLastVisited();
     }
-  }, [subject, user]);
+  }, [subjectSlug, user]);
 
-  const fetchData = async () => {
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  }, [isMobile]);
+
+  const fetchProgress = async () => {
     try {
-      const [subjectRes, lessonsRes, progressRes] = await Promise.all([
-        supabase.from('subjects').select('*').eq('slug', subject).single(),
-        supabase.from('lessons').select('*').eq('subject_id', 
-          (await supabase.from('subjects').select('id').eq('slug', subject).single()).data?.id
-        ).order('order_index'),
-        supabase.from('progress').select('*').eq('user_id', user?.id).eq('subject_id',
-          (await supabase.from('subjects').select('id').eq('slug', subject).single()).data?.id
-        ).maybeSingle(),
-      ]);
+      const { data } = await supabase
+        .from('progress')
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('subject_id', subjectSlug)
+        .maybeSingle();
 
-      if (subjectRes.data) setSubjectData(subjectRes.data);
-      if (lessonsRes.data) setLessons(lessonsRes.data);
-      if (progressRes.data) {
-        setProgress(progressRes.data);
+      if (data) {
+        setProgress(data);
       } else {
-        // Initialize progress if it doesn't exist
-        await initializeProgress(subjectRes.data?.id);
+        // Initialize progress
+        const { data: newProgress } = await supabase
+          .from('progress')
+          .insert({
+            user_id: user?.id,
+            subject_id: subjectSlug,
+            completed_lessons: [],
+            percent: 0,
+          })
+          .select()
+          .single();
+        setProgress(newProgress);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error("Failed to load subject data");
+      console.error('Error fetching progress:', error);
     } finally {
       setLoading(false);
     }
@@ -74,39 +90,29 @@ export default function Learn() {
   const updateLastVisited = async () => {
     await supabase
       .from('profiles')
-      .update({ last_visited: `/learn/${subject}` })
+      .update({ last_visited: `/learn/${subjectSlug}` })
       .eq('id', user?.id);
   };
 
-  const initializeProgress = async (subjectId: string) => {
-    const { data } = await supabase
-      .from('progress')
-      .insert({
-        user_id: user?.id,
-        subject_id: subjectId,
-        completed_lessons: [],
-        percent: 0,
-      })
-      .select()
-      .single();
-
-    if (data) setProgress(data);
-  };
-
-  const handleLessonComplete = async (lessonId: string, points: number) => {
+  const handleComplete = async (itemId: string, points: number) => {
     if (!progress || !user) return;
 
     const completedLessons = progress.completed_lessons || [];
-    if (completedLessons.includes(lessonId)) {
-      toast.info("Lesson already completed");
+    if (completedLessons.includes(itemId)) {
+      toast.info("Already completed");
       return;
     }
 
-    const newCompleted = [...completedLessons, lessonId];
-    const newPercent = (newCompleted.length / lessons.length) * 100;
+    const totalItems = 
+      (subject?.notes.length || 0) + 
+      (subject?.practiceProblems.reduce((acc, p) => acc + p.meta.items.length, 0) || 0) + 
+      (subject?.quizzes.length || 0);
+
+    const newCompleted = [...completedLessons, itemId];
+    const newPercent = (newCompleted.length / totalItems) * 100;
 
     try {
-      const { error: progressError } = await supabase
+      await supabase
         .from('progress')
         .update({
           completed_lessons: newCompleted,
@@ -114,74 +120,26 @@ export default function Learn() {
           points_earned: (progress.points_earned || 0) + points,
         })
         .eq('user_id', user.id)
-        .eq('subject_id', subjectData.id);
+        .eq('subject_id', subjectSlug);
 
-      if (progressError) throw progressError;
-
-      // Fetch current points and update
       const { data: currentProfile } = await supabase
         .from('profiles')
         .select('points')
         .eq('id', user.id)
         .single();
 
-      const { error: profileError } = await supabase
+      await supabase
         .from('profiles')
         .update({
           points: (currentProfile?.points || 0) + points
         })
         .eq('id', user.id);
 
-      if (profileError) throw profileError;
-
-      toast.success(`+${points} points! Lesson completed!`);
-      fetchData();
+      toast.success(`+${points} points!`);
+      fetchProgress();
     } catch (error) {
-      console.error('Error completing lesson:', error);
+      console.error('Error:', error);
       toast.error("Failed to update progress");
-    }
-  };
-
-  const handleResetProgress = async () => {
-    if (!progress || !user || !subjectData) return;
-
-    try {
-      const pointsToDeduct = progress.points_earned || 0;
-
-      // Reset progress in progress table
-      const { error: progressError } = await supabase
-        .from('progress')
-        .update({
-          completed_lessons: [],
-          percent: 0,
-          points_earned: 0,
-        })
-        .eq('user_id', user.id)
-        .eq('subject_id', subjectData.id);
-
-      if (progressError) throw progressError;
-
-      // Deduct points from profile
-      const { data: currentProfile } = await supabase
-        .from('profiles')
-        .select('points')
-        .eq('id', user.id)
-        .single();
-
-      const newPoints = Math.max(0, (currentProfile?.points || 0) - pointsToDeduct);
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ points: newPoints })
-        .eq('id', user.id);
-
-      if (profileError) throw profileError;
-
-      toast.success("Progress reset successfully!");
-      fetchData();
-    } catch (error) {
-      console.error('Error resetting progress:', error);
-      toast.error("Failed to reset progress");
     }
   };
 
@@ -189,19 +147,12 @@ export default function Learn() {
     return (
       <div className="container py-8">
         <Skeleton className="h-8 w-64 mb-8" />
-        <div className="grid gap-6 md:grid-cols-3">
-          <div className="md:col-span-2 space-y-4">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-32" />
-            ))}
-          </div>
-          <Skeleton className="h-64" />
-        </div>
+        <Skeleton className="h-96" />
       </div>
     );
   }
 
-  if (!subjectData) {
+  if (!subject) {
     return (
       <div className="container py-12 text-center">
         <h2 className="text-2xl font-bold mb-4">Subject not found</h2>
@@ -213,141 +164,223 @@ export default function Learn() {
     );
   }
 
-  const completedCount = progress?.completed_lessons?.length || 0;
-  const totalLessons = lessons.length;
-  const progressPercent = progress?.percent || 0;
+  const NoteComponent = subject.notes[selectedNote]?.component;
+  const noteMeta = subject.notes[selectedNote]?.meta;
+  
+  const ProblemComponent = subject.practiceProblems[selectedProblem]?.component;
+  const problemMeta = subject.practiceProblems[selectedProblem]?.meta;
+  
+  const QuizComponent = subject.quizzes[selectedQuiz]?.component;
+  const quizMeta = subject.quizzes[selectedQuiz]?.meta;
+
+  const isCompleted = (id: string) => progress?.completed_lessons?.includes(id);
 
   return (
-    <div className="container py-8">
-      <Button variant="ghost" onClick={() => navigate('/explore')} className="mb-6">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Explore
-      </Button>
+    <div className="min-h-screen flex w-full">
+      {/* Sidebar */}
+      <aside
+        className={`${
+          sidebarOpen ? 'w-64' : 'w-0'
+        } transition-all duration-300 border-r bg-card flex-shrink-0 overflow-hidden`}
+      >
+        <div className="h-full overflow-y-auto p-4">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-semibold text-lg">Contents</h2>
+            {isMobile && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">{subjectData.title}</h1>
-        <p className="text-muted-foreground">{subjectData.description}</p>
-      </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="w-full grid grid-cols-3 mb-4">
+              <TabsTrigger value="notes" className="text-xs">
+                <FileText className="h-3 w-3 mr-1" />
+                Notes
+              </TabsTrigger>
+              <TabsTrigger value="practice" className="text-xs">
+                <Code className="h-3 w-3 mr-1" />
+                Practice
+              </TabsTrigger>
+              <TabsTrigger value="quiz" className="text-xs">
+                <HelpCircle className="h-3 w-3 mr-1" />
+                Quiz
+              </TabsTrigger>
+            </TabsList>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Lessons List */}
-        <div className="md:col-span-2 space-y-4">
-          {lessons.map((lesson, index) => {
-            const Icon = lessonTypeIcons[lesson.type as keyof typeof lessonTypeIcons] || FileText;
-            const isCompleted = progress?.completed_lessons?.includes(lesson.id);
-
-            return (
-              <Card key={lesson.id} className={isCompleted ? "border-success/50 bg-success/5" : ""}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className={`rounded-lg p-2 ${isCompleted ? 'bg-success/20' : 'bg-primary/10'}`}>
-                          <Icon className={`h-5 w-5 ${isCompleted ? 'text-success' : 'text-primary'}`} />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">{lesson.title}</CardTitle>
-                          <div className="flex gap-2 mt-1">
-                            <Badge variant="outline" className="text-xs">
-                              {lesson.type}
-                            </Badge>
-                            {lesson.difficulty && (
-                              <Badge variant="secondary" className="text-xs">
-                                {lesson.difficulty}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <CardDescription>{lesson.content}</CardDescription>
-                    </div>
-                    <div className="ml-4">
-                      {isCompleted ? (
-                        <CheckCircle2 className="h-6 w-6 text-success" />
-                      ) : (
-                        <Circle className="h-6 w-6 text-muted-foreground" />
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
+            <TabsContent value="notes" className="space-y-2 mt-0">
+              {subject.notes.map((note, index) => (
+                <button
+                  key={note.meta.id}
+                  onClick={() => setSelectedNote(index)}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    selectedNote === index
+                      ? 'bg-primary text-primary-foreground'
+                      : 'hover:bg-muted'
+                  }`}
+                >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Trophy className="h-4 w-4" />
-                      <span>{lesson.points} points</span>
-                    </div>
-                    {!isCompleted && (
-                      <Button onClick={() => handleLessonComplete(lesson.id, lesson.points)}>
-                        Mark Complete
-                      </Button>
+                    <span className="text-sm font-medium">{note.meta.title}</span>
+                    {isCompleted(note.meta.id) && (
+                      <CheckCircle2 className="h-4 w-4 text-success" />
                     )}
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          {lessons.length === 0 && (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No lessons available yet</h3>
-                <p className="text-muted-foreground">Check back soon for new content!</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Progress Sidebar */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Progress</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center">
-              <ProgressRing progress={progressPercent} className="mb-4" />
-              <p className="text-center text-sm text-muted-foreground">
-                {completedCount} of {totalLessons} lessons completed
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Points Earned</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center">
-                <div className="text-4xl font-bold text-primary mb-2">
-                  {progress?.points_earned || 0}
-                </div>
-                <p className="text-sm text-muted-foreground">points from this subject</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {completedCount > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Reset Progress</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Button 
-                  variant="destructive" 
-                  className="w-full" 
-                  onClick={handleResetProgress}
-                >
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Reset Progress
-                </Button>
-                <p className="text-xs text-muted-foreground mt-2 text-center">
-                  This will reset all completed lessons and deduct earned points
+                </button>
+              ))}
+              {subject.notes.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No notes available
                 </p>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </TabsContent>
+
+            <TabsContent value="practice" className="space-y-2 mt-0">
+              {subject.practiceProblems.map((problem, index) => (
+                <button
+                  key={problem.meta.id}
+                  onClick={() => setSelectedProblem(index)}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    selectedProblem === index
+                      ? 'bg-primary text-primary-foreground'
+                      : 'hover:bg-muted'
+                  }`}
+                >
+                  <span className="text-sm font-medium">{problem.meta.title}</span>
+                </button>
+              ))}
+              {subject.practiceProblems.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No practice problems available
+                </p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="quiz" className="space-y-2 mt-0">
+              {subject.quizzes.map((quiz, index) => (
+                <button
+                  key={quiz.meta.id}
+                  onClick={() => setSelectedQuiz(index)}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    selectedQuiz === index
+                      ? 'bg-primary text-primary-foreground'
+                      : 'hover:bg-muted'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{quiz.meta.title}</span>
+                    {isCompleted(quiz.meta.id) && (
+                      <CheckCircle2 className="h-4 w-4 text-success" />
+                    )}
+                  </div>
+                </button>
+              ))}
+              {subject.quizzes.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No quizzes available
+                </p>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
-      </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto">
+        <div className="container py-6">
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-6">
+            {!sidebarOpen && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => navigate('/explore')} size="sm">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">{subject.title}</h1>
+              <p className="text-sm text-muted-foreground">{subject.description}</p>
+            </div>
+          </div>
+
+          {/* Content Area */}
+          <Card>
+            <CardContent className="p-6">
+              {activeTab === 'notes' && NoteComponent && (
+                <div>
+                  <NoteComponent />
+                  {noteMeta && !isCompleted(noteMeta.id) && (
+                    <div className="mt-8 pt-6 border-t flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Trophy className="h-4 w-4" />
+                        <span>{noteMeta.points} points</span>
+                        <Badge variant="secondary">{noteMeta.difficulty}</Badge>
+                      </div>
+                      <Button onClick={() => handleComplete(noteMeta.id, noteMeta.points)}>
+                        Mark Complete
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'practice' && ProblemComponent && (
+                <div>
+                  <ProblemComponent />
+                </div>
+              )}
+
+              {activeTab === 'quiz' && QuizComponent && (
+                <div>
+                  <QuizComponent />
+                  {quizMeta && !isCompleted(quizMeta.id) && (
+                    <div className="mt-8 pt-6 border-t flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Trophy className="h-4 w-4" />
+                        <span>{quizMeta.points} points</span>
+                      </div>
+                      <Button onClick={() => handleComplete(quizMeta.id, quizMeta.points)}>
+                        Complete Quiz
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'notes' && subject.notes.length === 0 && (
+                <div className="text-center py-12">
+                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No notes available yet</p>
+                </div>
+              )}
+
+              {activeTab === 'practice' && subject.practiceProblems.length === 0 && (
+                <div className="text-center py-12">
+                  <Code className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No practice problems available yet</p>
+                </div>
+              )}
+
+              {activeTab === 'quiz' && subject.quizzes.length === 0 && (
+                <div className="text-center py-12">
+                  <HelpCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No quizzes available yet</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </main>
     </div>
   );
 }

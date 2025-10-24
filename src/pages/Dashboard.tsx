@@ -8,12 +8,12 @@ import { StreakDisplay } from "@/components/StreakDisplay";
 import { ProgressRing } from "@/components/ProgressRing";
 import { ArrowRight, BookOpen, Target, TrendingUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { subjects } from "@/subjects";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [progress, setProgress] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,15 +25,13 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [profileRes, progressRes, subjectsRes] = await Promise.all([
+      const [profileRes, progressRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user?.id).single(),
-        supabase.from('progress').select('*, subjects(*)').eq('user_id', user?.id),
-        supabase.from('subjects').select('*').order('order_index'),
+        supabase.from('progress').select('*').eq('user_id', user?.id),
       ]);
 
       if (profileRes.data) setProfile(profileRes.data);
       if (progressRes.data) setProgress(progressRes.data);
-      if (subjectsRes.data) setSubjects(subjectsRes.data);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -136,12 +134,12 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent className="space-y-4">
           {subjects.map((subject) => {
-            const subjectProgress = progress.find(p => p.subject_id === subject.id);
+            const subjectProgress = progress.find(p => p.subject_id === subject.slug);
             const percent = subjectProgress?.percent || 0;
             
             return (
               <Link
-                key={subject.id}
+                key={subject.slug}
                 to={`/learn/${subject.slug}`}
                 className="block"
               >
@@ -160,15 +158,6 @@ export default function Dashboard() {
               </Link>
             );
           })}
-
-          {subjects.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground mb-4">No subjects available yet</p>
-              <Button asChild>
-                <Link to="/explore">Explore Subjects</Link>
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

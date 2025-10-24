@@ -4,35 +4,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Brain, Code2, Rocket, BookOpen, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const iconMap: { [key: string]: any } = {
-  Brain,
-  Code2,
-  Rocket,
-  BookOpen,
-};
+import { subjects } from "@/subjects";
 
 export default function Explore() {
   const { user } = useAuth();
-  const [subjects, setSubjects] = useState<any[]>([]);
   const [progress, setProgress] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
+    fetchProgress();
   }, [user]);
 
-  const fetchData = async () => {
+  const fetchProgress = async () => {
     try {
-      const subjectsRes = await supabase
-        .from('subjects')
-        .select('*')
-        .order('order_index');
-
-      if (subjectsRes.data) setSubjects(subjectsRes.data);
-
       if (user) {
         const progressRes = await supabase
           .from('progress')
@@ -72,14 +58,14 @@ export default function Explore() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {subjects.map((subject) => {
-          const Icon = iconMap[subject.icon] || BookOpen;
-          const subjectProgress = progress.find(p => p.subject_id === subject.id);
+          const Icon = subject.icon;
+          const subjectProgress = progress.find(p => p.subject_id === subject.slug);
           const percent = subjectProgress?.percent || 0;
           const hasStarted = percent > 0;
 
           return (
             <Card 
-              key={subject.id} 
+              key={subject.slug} 
               className="group overflow-hidden transition-all hover:shadow-lg"
             >
               <CardHeader>
@@ -117,14 +103,6 @@ export default function Explore() {
           );
         })}
       </div>
-
-      {subjects.length === 0 && (
-        <div className="text-center py-12">
-          <BookOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <h2 className="text-xl font-semibold mb-2">No Subjects Available</h2>
-          <p className="text-muted-foreground">Check back soon for new learning content!</p>
-        </div>
-      )}
     </div>
   );
 }
