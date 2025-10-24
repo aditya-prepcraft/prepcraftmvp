@@ -258,7 +258,10 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      update_user_streak: {
+        Args: { user_id_param: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user"

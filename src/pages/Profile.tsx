@@ -13,8 +13,19 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) fetchProfile();
+    if (user) {
+      fetchProfile();
+      updateStreak();
+    }
   }, [user]);
+
+  const updateStreak = async () => {
+    try {
+      await supabase.rpc('update_user_streak', { user_id_param: user?.id });
+    } catch (error) {
+      console.error('Error updating streak:', error);
+    }
+  };
 
   const fetchProfile = async () => {
     try {

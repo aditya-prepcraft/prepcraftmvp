@@ -40,10 +40,12 @@ export default function Dashboard() {
   };
 
   const updateLastActive = async () => {
-    await supabase
-      .from('profiles')
-      .update({ last_active: new Date().toISOString() })
-      .eq('id', user?.id);
+    try {
+      // Update streak using the database function
+      await supabase.rpc('update_user_streak', { user_id_param: user?.id });
+    } catch (error) {
+      console.error('Error updating streak:', error);
+    }
   };
 
   const totalProgress = progress.length > 0

@@ -14,8 +14,19 @@ export default function Explore() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (user) {
+      updateStreak();
+    }
     fetchProgress();
   }, [user]);
+
+  const updateStreak = async () => {
+    try {
+      await supabase.rpc('update_user_streak', { user_id_param: user?.id });
+    } catch (error) {
+      console.error('Error updating streak:', error);
+    }
+  };
 
   const fetchProgress = async () => {
     try {

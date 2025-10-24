@@ -88,10 +88,18 @@ export default function Learn() {
   };
 
   const updateLastVisited = async () => {
-    await supabase
-      .from('profiles')
-      .update({ last_visited: `/learn/${subjectSlug}` })
-      .eq('id', user?.id);
+    try {
+      // Update streak using the database function
+      await supabase.rpc('update_user_streak', { user_id_param: user?.id });
+      
+      // Update last visited page
+      await supabase
+        .from('profiles')
+        .update({ last_visited: `/learn/${subjectSlug}` })
+        .eq('id', user?.id);
+    } catch (error) {
+      console.error('Error updating last visited:', error);
+    }
   };
 
   const handleComplete = async (itemId: string, points: number) => {
@@ -112,6 +120,9 @@ export default function Learn() {
     const newPercent = (newCompleted.length / totalItems) * 100;
 
     try {
+      // Update streak
+      await supabase.rpc('update_user_streak', { user_id_param: user.id });
+
       await supabase
         .from('progress')
         .update({
@@ -135,7 +146,7 @@ export default function Learn() {
         })
         .eq('id', user.id);
 
-      toast.success(`+${points} points!`);
+      toast.success(`+${points} points! Streak updated!`);
       fetchProgress();
     } catch (error) {
       console.error('Error:', error);
