@@ -1,7 +1,22 @@
 import { Brain, Code2, Rocket, BookOpen } from 'lucide-react';
-import { dsaNotes } from './dsa/notes';
+import { dsaNotes, dsaNotesStructured } from './dsa/notes';
 import { dsaPracticeProblems } from './dsa/practice-problems';
 import { dsaQuizzes } from './dsa/quiz';
+import { developmentNotes } from './development/notes';
+import { aptitudeNotes } from './aptitude/notes';
+import { csFundamentalsNotes } from './cs-fundamentals/notes';
+
+export interface SubChapter {
+  id: string;
+  title: string;
+  points: number;
+}
+
+export interface Chapter {
+  id: string;
+  title: string;
+  subChapters: SubChapter[];
+}
 
 export interface SubjectConfig {
   slug: string;
@@ -12,6 +27,9 @@ export interface SubjectConfig {
   notes: any[];
   practiceProblems: any[];
   quizzes: any[];
+  notesStructured?: Chapter[];
+  practiceProblemsStructured?: Chapter[];
+  quizzesStructured?: Chapter[];
 }
 
 export const subjects: SubjectConfig[] = [
@@ -24,6 +42,9 @@ export const subjects: SubjectConfig[] = [
     notes: dsaNotes,
     practiceProblems: dsaPracticeProblems,
     quizzes: dsaQuizzes,
+    notesStructured: dsaNotesStructured,
+    practiceProblemsStructured: dsaNotesStructured,
+    quizzesStructured: dsaNotesStructured,
   },
   {
     slug: 'aptitude',
@@ -34,6 +55,9 @@ export const subjects: SubjectConfig[] = [
     notes: [],
     practiceProblems: [],
     quizzes: [],
+    notesStructured: aptitudeNotes,
+    practiceProblemsStructured: aptitudeNotes,
+    quizzesStructured: aptitudeNotes,
   },
   {
     slug: 'development',
@@ -44,6 +68,9 @@ export const subjects: SubjectConfig[] = [
     notes: [],
     practiceProblems: [],
     quizzes: [],
+    notesStructured: developmentNotes,
+    practiceProblemsStructured: developmentNotes,
+    quizzesStructured: developmentNotes,
   },
   {
     slug: 'cs-fundamentals',
@@ -54,6 +81,9 @@ export const subjects: SubjectConfig[] = [
     notes: [],
     practiceProblems: [],
     quizzes: [],
+    notesStructured: csFundamentalsNotes,
+    practiceProblemsStructured: csFundamentalsNotes,
+    quizzesStructured: csFundamentalsNotes,
   },
 ];
 

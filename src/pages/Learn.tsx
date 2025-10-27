@@ -12,7 +12,8 @@ import {
   Code,
   HelpCircle,
   CheckCircle2,
-  Trophy
+  Trophy,
+  ChevronDown
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,6 +26,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
+import type { Chapter, SubChapter } from "@/subjects";
 
 export default function Learn() {
   const { subject: subjectSlug } = useParams<{ subject: string }>();
@@ -39,6 +41,7 @@ export default function Learn() {
   const [activeTab, setActiveTab] = useState('notes');
   const [progress, setProgress] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedSubChapter, setSelectedSubChapter] = useState<SubChapter | null>(null);
 
   const subject = getSubjectBySlug(subjectSlug || '');
 
@@ -225,25 +228,36 @@ export default function Learn() {
             </TabsList>
 
             <TabsContent value="notes" className="space-y-2 mt-0">
-              {subject.notes.map((note, index) => (
-                <button
-                  key={note.meta.id}
-                  onClick={() => setSelectedNote(index)}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
-                    selectedNote === index
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-muted'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{note.meta.title}</span>
-                    {isCompleted(note.meta.id) && (
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                    )}
-                  </div>
-                </button>
-              ))}
-              {subject.notes.length === 0 && (
+              {subject.notesStructured && subject.notesStructured.length > 0 ? (
+                subject.notesStructured.map((chapter) => (
+                  <Collapsible key={chapter.id}>
+                    <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors">
+                      <span className="text-sm font-semibold">{chapter.title}</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pl-3 space-y-1 mt-1">
+                      {chapter.subChapters.map((subChapter) => (
+                        <button
+                          key={subChapter.id}
+                          onClick={() => setSelectedSubChapter(subChapter)}
+                          className={`w-full text-left p-2 rounded-lg transition-colors ${
+                            selectedSubChapter?.id === subChapter.id
+                              ? 'bg-primary text-primary-foreground'
+                              : 'hover:bg-muted'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm">{subChapter.title}</span>
+                            {isCompleted(subChapter.id) && (
+                              <CheckCircle2 className="h-4 w-4 text-success" />
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+                ))
+              ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No notes available
                 </p>
@@ -251,20 +265,36 @@ export default function Learn() {
             </TabsContent>
 
             <TabsContent value="practice" className="space-y-2 mt-0">
-              {subject.practiceProblems.map((problem, index) => (
-                <button
-                  key={problem.meta.id}
-                  onClick={() => setSelectedProblem(index)}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
-                    selectedProblem === index
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-muted'
-                  }`}
-                >
-                  <span className="text-sm font-medium">{problem.meta.title}</span>
-                </button>
-              ))}
-              {subject.practiceProblems.length === 0 && (
+              {subject.practiceProblemsStructured && subject.practiceProblemsStructured.length > 0 ? (
+                subject.practiceProblemsStructured.map((chapter) => (
+                  <Collapsible key={chapter.id}>
+                    <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors">
+                      <span className="text-sm font-semibold">{chapter.title}</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pl-3 space-y-1 mt-1">
+                      {chapter.subChapters.map((subChapter) => (
+                        <button
+                          key={subChapter.id}
+                          onClick={() => setSelectedSubChapter(subChapter)}
+                          className={`w-full text-left p-2 rounded-lg transition-colors ${
+                            selectedSubChapter?.id === subChapter.id
+                              ? 'bg-primary text-primary-foreground'
+                              : 'hover:bg-muted'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm">{subChapter.title}</span>
+                            {isCompleted(subChapter.id) && (
+                              <CheckCircle2 className="h-4 w-4 text-success" />
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+                ))
+              ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No practice problems available
                 </p>
@@ -272,25 +302,36 @@ export default function Learn() {
             </TabsContent>
 
             <TabsContent value="quiz" className="space-y-2 mt-0">
-              {subject.quizzes.map((quiz, index) => (
-                <button
-                  key={quiz.meta.id}
-                  onClick={() => setSelectedQuiz(index)}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
-                    selectedQuiz === index
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-muted'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{quiz.meta.title}</span>
-                    {isCompleted(quiz.meta.id) && (
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                    )}
-                  </div>
-                </button>
-              ))}
-              {subject.quizzes.length === 0 && (
+              {subject.quizzesStructured && subject.quizzesStructured.length > 0 ? (
+                subject.quizzesStructured.map((chapter) => (
+                  <Collapsible key={chapter.id}>
+                    <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors">
+                      <span className="text-sm font-semibold">{chapter.title}</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pl-3 space-y-1 mt-1">
+                      {chapter.subChapters.map((subChapter) => (
+                        <button
+                          key={subChapter.id}
+                          onClick={() => setSelectedSubChapter(subChapter)}
+                          className={`w-full text-left p-2 rounded-lg transition-colors ${
+                            selectedSubChapter?.id === subChapter.id
+                              ? 'bg-primary text-primary-foreground'
+                              : 'hover:bg-muted'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm">{subChapter.title}</span>
+                            {isCompleted(subChapter.id) && (
+                              <CheckCircle2 className="h-4 w-4 text-success" />
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+                ))
+              ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No quizzes available
                 </p>
@@ -327,65 +368,49 @@ export default function Learn() {
           {/* Content Area */}
           <Card>
             <CardContent className="p-6">
-              {activeTab === 'notes' && NoteComponent && (
+              {selectedSubChapter ? (
                 <div>
-                  <NoteComponent />
-                  {noteMeta && !isCompleted(noteMeta.id) && (
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-bold mb-2">{selectedSubChapter.title}</h2>
+                    <Badge variant="outline">ID: {selectedSubChapter.id}</Badge>
+                  </div>
+                  
+                  <div className="prose dark:prose-invert max-w-none">
+                    <div className="bg-muted/50 rounded-lg p-8 text-center">
+                      <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-xl font-semibold mb-2">Coming Soon</h3>
+                      <p className="text-muted-foreground">
+                        This content is currently under development. Check back soon!
+                      </p>
+                    </div>
+                  </div>
+
+                  {!isCompleted(selectedSubChapter.id) && (
                     <div className="mt-8 pt-6 border-t flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Trophy className="h-4 w-4" />
-                        <span>{noteMeta.points} points</span>
-                        <Badge variant="secondary">{noteMeta.difficulty}</Badge>
+                        <span>{selectedSubChapter.points} points</span>
                       </div>
-                      <Button onClick={() => handleComplete(noteMeta.id, noteMeta.points)}>
+                      <Button onClick={() => handleComplete(selectedSubChapter.id, selectedSubChapter.points)}>
                         Mark Complete
                       </Button>
                     </div>
                   )}
-                </div>
-              )}
-
-              {activeTab === 'practice' && ProblemComponent && (
-                <div>
-                  <ProblemComponent />
-                </div>
-              )}
-
-              {activeTab === 'quiz' && QuizComponent && (
-                <div>
-                  <QuizComponent />
-                  {quizMeta && !isCompleted(quizMeta.id) && (
-                    <div className="mt-8 pt-6 border-t flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Trophy className="h-4 w-4" />
-                        <span>{quizMeta.points} points</span>
+                  {isCompleted(selectedSubChapter.id) && (
+                    <div className="mt-8 pt-6 border-t">
+                      <div className="flex items-center gap-2 text-success">
+                        <CheckCircle2 className="h-5 w-5" />
+                        <span className="font-medium">Completed</span>
                       </div>
-                      <Button onClick={() => handleComplete(quizMeta.id, quizMeta.points)}>
-                        Complete Quiz
-                      </Button>
                     </div>
                   )}
                 </div>
-              )}
-
-              {activeTab === 'notes' && subject.notes.length === 0 && (
+              ) : (
                 <div className="text-center py-12">
                   <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No notes available yet</p>
-                </div>
-              )}
-
-              {activeTab === 'practice' && subject.practiceProblems.length === 0 && (
-                <div className="text-center py-12">
-                  <Code className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No practice problems available yet</p>
-                </div>
-              )}
-
-              {activeTab === 'quiz' && subject.quizzes.length === 0 && (
-                <div className="text-center py-12">
-                  <HelpCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No quizzes available yet</p>
+                  <p className="text-muted-foreground">
+                    Select a topic from the sidebar to get started
+                  </p>
                 </div>
               )}
             </CardContent>
